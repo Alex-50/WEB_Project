@@ -102,6 +102,23 @@ def tours_():
     return render_template('tours.html', title='Список экскурсий', lst=lst)
 
 
+@app.route('/tours/sort/<sort_type>')
+@login_required
+def tours_sort(sort_type):
+    db_sess = db_session.create_session()
+    lst = []
+    for tour in db_sess.query(Tour).all():
+        user = db_sess.query(User).filter(User.id == tour.user).first()
+        lst.append([tour, user, str(tour.id), int(tour.cost), tour.date])
+    if sort_type == 'max':
+        lst.sort(key=lambda x: x[3])
+    elif sort_type == 'min':
+        lst.sort(key=lambda x: -x[3])
+    else:
+        lst.sort(key=lambda x: x[4])
+    return render_template('tours.html', title='Список экскурсий', lst=lst)
+
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -150,9 +167,7 @@ def login():
     return render_template('login.html', title='Авторизация', form=form)
 
 
-@app.route('/tours/<int:tour_id>')
-@login_required
-def tours(tour_id):
+def make_photo(tour_id):
     db_sess = db_session.create_session()
     tour = db_sess.query(Tour).get(tour_id)
     if tour:
@@ -172,9 +187,19 @@ def tours(tour_id):
         spn = str(spn_x * k) + ',' + str(spn_y * k)
         link = "http://static-maps.yandex.ru/1.x/?ll=" + ll + "&l=map&spn=" + spn + "&z=12&&pt=" + pts
         resp = get(link)
-        filename = 'static/img/foto.png'
+        filename = 'static/img/foto' + str(tour_id) + '.png'
         with open(filename, "wb") as f:
             f.write(resp.content)
+
+
+@app.route('/tours/<int:tour_id>')
+@login_required
+def tours(tour_id):
+    db_sess = db_session.create_session()
+    tour = db_sess.query(Tour).get(tour_id)
+    if tour:
+        lst = tour.places.split('&')
+        filename = 'static/img/foto' + str(tour_id) + '.png'
         return render_template("tour.html", title="Экскурсия #" + str(tour.id), tour=tour, file=filename, lst=lst)
     return """<h1 class="text-center">Ошибка!</h1>"""
 
@@ -199,6 +224,8 @@ def add_tour():
         tour.user = user.id
         db_sess.add(tour)
         db_sess.commit()
+        tour_id = db_sess.query(Tour).filter(Tour.name == form.name.data).first().id
+        make_photo(tour_id)
         return redirect('/tours')
     return render_template('add_tour.html', title='Добавление работы', form=form)
 
@@ -230,6 +257,7 @@ def tours_edit(tours_id):
             tour.cost = form.cost.data
             tour.date = form.date.data
             db_sess.commit()
+            make_photo(tours_id)
             return redirect('/tours')
         else:
             abort(404)
