@@ -11,7 +11,6 @@ from wtforms.validators import DataRequired
 from data import db_session, tours_api, users_api
 from data.tours import Tour
 from data.users import User
-from waitress import serve
 
 API_KEY = '40d1649f-0493-4b70-98ba-98533de7710b'
 app = Flask(__name__)
